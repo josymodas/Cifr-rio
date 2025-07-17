@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Cifrário - Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Mono&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Fira Mono', monospace;
+      background-color: #121212;
+      color: #fff;
+    }
+    .container {
+      max-width: 500px;
+      margin: 4em auto;
+      padding: 2em;
+      background: #1f1f1f;
+      border-radius: 10px;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    input, button {
+      width: 100%;
+      padding: 0.8em;
+      margin-top: 1em;
+      border: none;
+      border-radius: 6px;
+      font-size: 1em;
+      font-family: inherit;
+    }
+    button {
+      background-color: #333;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #555;
+    }
+    #mainApp {
+      display: none;
+      padding: 1em;
+    }
+    #cifraDisplay {
+      white-space: pre-wrap;
+      background: #222;
+      padding: 1em;
+      border-radius: 8px;
+      margin-top: 1em;
+    }
+    .admin-controls {
+      margin-top: 2em;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="loginBox">
+    <h1>🎸 Cifrário</h1>
+    <input type="text" id="usuario" placeholder="Usuário">
+    <input type="password" id="senha" placeholder="Senha">
+    <button onclick="logar()">Entrar</button>
+  </div>
+
+  <div id="mainApp">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h2 id="bemVindo"></h2>
+      <button onclick="logout()">Sair</button>
+    </div>
+
+    <div id="adminPanel" class="admin-controls" style="display:none;">
+      <h3>👑 Gerenciar Usuários</h3>
+      <button onclick="adicionarUsuario()">➕ Adicionar usuário</button>
+      <button onclick="removerUsuario()">🗑️ Remover usuário</button>
+    </div>
+
+    <hr>
+
+    <label>Título da música:</label>
+    <input type="text" id="titulo">
+    <textarea id="conteudo" rows="6" placeholder="Cole a cifra..."></textarea>
+    <button onclick="salvarCifra()">Salvar cifra</button>
+
+    <h3>Minhas cifras</h3>
+    <select id="lista" onchange="carregarCifra()">
+      <option value="">-- Selecione --</option>
+    </select>
+    <button onclick="removerCifra()">Remover selecionada</button>
+
+    <div id="cifraDisplay"></div>
+  </div>
+
+  <script>
+    const usuariosKey = "usuarios";
+    const sessaoKey = "usuarioAtual";
+    
+    function iniciarSistema() {
+      const usuarios = JSON.parse(localStorage.getItem(usuariosKey)) || {};
+      if (!usuarios["Cifrario"]) {
+        usuarios["Cifrario"] = { senha: "4321", tipo: "master" };
+        localStorage.setItem(usuariosKey, JSON.stringify(usuarios));
+      }
+
+      const logado = localStorage.getItem(sessaoKey);
+      if (logado) {
+        mostrarApp(logado);
+      }
+    }
+
+    function logar() {
+      const usuario = document.getElementById("usuario").value.trim();
+      const senha = document.getElementById("senha").value;
+      const usuarios = JSON.parse(localStorage.getItem(usuariosKey)) || {};
+
+      if (usuarios[usuario] && usuarios[usuario].senha === senha) {
+        localStorage.setItem(sessaoKey, usuario);
+        mostrarApp(usuario);
+      } else {
+        alert("Usuário ou senha inválidos");
+      }
+    }
+
+    function mostrarApp(usuario) {
+      document.getElementById("loginBox").style.display = "none";
+      document.getElementById("mainApp").style.display = "block";
+      document.getElementById("bemVindo").innerText = `Bem-vindo, ${usuario}`;
+
+      const usuarios = JSON.parse(localStorage.getItem(usuariosKey));
+      if (usuarios[usuario]?.tipo === "master") {
+        document.getElementById("adminPanel").style.display = "block";
+      }
+
+      atualizarLista();
+    }
+
+    function logout() {
+      localStorage.removeItem(sessaoKey);
+      location.reload();
+    }
+
+    function salvarCifra() {
+      const usuario = localStorage.getItem(sessaoKey);
+      const titulo = document.getElementById("titulo").value.trim();
+      const conteudo = document.getElementById("conteudo").value;
+      if (!titulo || !conteudo) return alert("Preencha os campos.");
+      localStorage.setItem(`cifra_${usuario}_${titulo}`, conteudo);
+      atualizarLista();
+    }
+
+    function atualizarLista() {
+      const usuario = localStorage.getItem(sessaoKey);
+      const lista = document.getElementById("lista");
+      lista.innerHTML = '<option value="">-- Selecione --</option>';
+      for (let i = 0; i < localStorage.length; i++) {
+        const chave = localStorage.key(i);
+        if (chave.startsWith(`cifra_${usuario}_`)) {
+          const titulo = chave.replace(`cifra_${usuario}_`, "");
+          const op = document.createElement("option");
+          op.value = titulo;
+          op.text = titulo;
+          lista.appendChild(op);
+        }
+      }
+    }
+
+    function carregarCifra() {
+      const usuario = localStorage.getItem(sessaoKey);
+      const titulo = document.getElementById("lista").value;
+      const cifra = localStorage.getItem(`cifra_${usuario}_${titulo}`);
+      document.getElementById("cifraDisplay").textContent = cifra || "";
+      document.getElementById("titulo").value = titulo;
+      document.getElementById("conteudo").value = cifra || "";
+    }
+
+    function removerCifra() {
+      const usuario = localStorage.getItem(sessaoKey);
+      const titulo = document.getElementById("lista").value;
+      if (!titulo) return;
+      const confirmacao = confirm(`Remover "${titulo}"?`);
+      if (confirmacao) {
+        localStorage.removeItem(`cifra_${usuario}_${titulo}`);
+        atualizarLista();
+        document.getElementById("cifraDisplay").textContent = "";
+      }
+    }
+
+    function adicionarUsuario() {
+      const nome = prompt("Novo nome de usuário:").trim();
+      const senha = prompt("Senha para esse usuário:").trim();
+      if (!nome || !senha) return alert("Preenchimento obrigatório.");
+      const usuarios = JSON.parse(localStorage.getItem(usuariosKey)) || {};
+      if (usuarios[nome]) return alert("Usuário já existe.");
+      usuarios[nome] = { senha, tipo: "normal" };
+      localStorage.setItem(usuariosKey, JSON.stringify(usuarios));
+      alert("Usuário criado!");
+    }
+
+    function removerUsuario() {
+      const nome = prompt("Nome do usuário a remover:").trim();
+      if (!nome || nome === "Cifrario") return alert("Não pode remover o master.");
+      const usuarios = JSON.parse(localStorage.getItem(usuariosKey)) || {};
+      if (!usuarios[nome]) return alert("Usuário não existe.");
+      delete usuarios[nome];
+      localStorage.setItem(usuariosKey, JSON.stringify(usuarios));
+      alert("Usuário removido.");
+    }
+
+    iniciarSistema();
+  </script>
+</body>
+</html>
