@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cifrário</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon-192.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Mono&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(() => console.log('✅ Service Worker registrado!'))
+        .catch(err => console.error('❌ Erro no Service Worker:', err));
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Fira Mono', monospace;
+      background-color: #121212;
+      color: #fff;
+      overflow-x: hidden;
+    }
+    .light-mode {
+      background-color: #f5f5f5;
+      color: #000;
+    }
+    .light-mode #cifraDisplay {
+      background-color: #fff;
+      color: #000;
+    }
+    .container {
+      max-width: 600px;
+      margin: 2em auto;
+      padding: 1em;
+      background: #1f1f1f;
+      border-radius: 10px;
+    }
+    .light-mode .container {
+      background: #ffffff;
+      color: #000000;
+    }
+    input, button, select, textarea {
+      width: 100%;
+      padding: 0.8em;
+      margin-top: 1em;
+      border: none;
+      border-radius: 6px;
+      font-size: 1em;
+      font-family: inherit;
+    }
+    button {
+      background-color: #333;
+      color: white;
+      cursor: pointer;
+    }
+    .light-mode button {
+      background-color: #ddd;
+      color: #000;
+    }
+    button:hover {
+      background-color: #555;
+    }
+    .light-mode button:hover {
+      background-color: #ccc;
+    }
+    #cifraDisplay {
+      white-space: pre-wrap;
+      background: #222;
+      padding: 1.5em;
+      border-radius: 8px;
+      margin-top: 1em;
+      font-size: 1.1em;
+      font-weight: 400;
+      min-height: 250px;
+      overflow-wrap: break-word;
+    }
+    .cifra-line { display: block; white-space: pre; }
+    .acorde { color: #00bfff; font-weight: bold; }
+    .admin-controls { margin-top: 2em; }
+    #toggleBtn {
+      position: fixed;
+      bottom: 1.2em;
+      right: 1.2em;
+      font-size: 1.8em;
+      cursor: pointer;
+      background-color: #00000088;
+      padding: 0.6em;
+      border-radius: 50%;
+      z-index: 1000;
+      color: #fff;
+      opacity: 0.7;
+      transition: opacity 0.3s;
+    }
+    #toggleBtn:hover { opacity: 1; }
+    .controls {
+      display: none;
+      position: fixed;
+      top: 1em;
+      left: 1em;
+      background-color: #00000066;
+      padding: 0.5em;
+      border-radius: 10px;
+      z-index: 999;
+      flex-direction: column;
+      gap: 0.5em;
+    }
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+      font-size: 0.95em;
+    }
+    #conteudo { font-weight: bold; }
+    #mainApp { display: none; }
+    select:invalid { color: #888; }
+    .transposicao {
+      display: flex;
+      gap: 0.5em;
+      flex-wrap: wrap;
+      margin-top: 1em;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="loginForm">
+      <h2>🎸 Cifrário</h2>
+      <input type="text" id="usuario" placeholder="Usuário" />
+      <input type="password" id="senha" placeholder="Senha" />
+      <button onclick="logar()">Entrar</button>
+    </div>
+
+    <div id="mainApp">
+      <h2 id="bemVindo"></h2>
+      <input type="text" id="urlCifra" placeholder="URL da cifra (ex: cifra club)" />
+      <button onclick="extrairCifra()">🔍 Extrair da URL</button>
+
+      <input type="text" id="titulo" placeholder="Título da música" />
+      <textarea id="conteudo" rows="8" placeholder="Cole aqui a cifra..."></textarea>
+      <button onclick="salvarCifra()">💾 Salvar</button>
+
+      <h3>🎶 Minhas músicas</h3>
+      <select id="lista" onchange="carregarCifra()">
+        <option value="" disabled selected>-- Selecione --</option>
+      </select>
+      <button onclick="removerCifra()">🗑️ Remover música selecionada</button>
+      <button onclick="logout()">🚪 Sair</button>
+
+      <div class="transposicao">
+        <button onclick="transpor(-1)">♭ Baixar 1</button>
+        <button onclick="transpor(1)">♯ Subir 1</button>
+        <select onchange="transporPara(this.value)">
+          <option value="">Transpor para tom:</option>
+          <option>C</option><option>C#</option><option>D</option><option>D#</option><option>E</option>
+          <option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option>
+        </select>
+      </div>
+
+      <div style="margin-top: 1em;">
+        <button onclick="copiarCifra()">📋 Copiar</button>
+        <button onclick="exportarPDF()">📄 PDF</button>
+      </div>
+
+      <div id="adminPanel" class="admin-controls" style="display:none">
+        <h3>👑 Gerenciar usuários</h3>
+        <button onclick="adicionarUsuario()">➕ Novo usuário</button>
+        <div id="listaUsuarios"></div>
+      </div>
+
+      <div id="cifraDisplay"></div>
+    </div>
+  </div>
+
+  <!-- Botão de Configuração -->
+  <div id="toggleBtn" onclick="alternarControles()">⚙️</div>
+
+  <!-- Painel Flutuante -->
+  <div class="controls">
+    <button onclick="toggleMode()">🌓 Tema</button>
+    <div class="slider-container">
+      <label>Fonte:</label>
+      <button onclick="adjustFont(1)">A+</button>
+      <button onclick="adjustFont(-1)">A-</button>
+    </div>
+    <div class="slider-container">
+      <label>Rolagem:</label>
+      <button onclick="toggleScroll()">⏯️ Play/Pause</button>
+      <input type="range" id="scrollSpeed" min="1" max="10" value="2" oninput="atualizarPorcentagem()" />
+      <span id="scrollPercent">20%</span>
+    </div>
+  </div>
+<script>
+let usuarios = JSON.parse(localStorage.getItem("usuarios") || "{}");
+if (!usuarios["Cifrario"]) usuarios["Cifrario"] = "4321";
+let usuarioAtual = null;
+
+function logar() {
+  const u = usuario.value;
+  const s = senha.value;
+  if (usuarios[u] && usuarios[u] === s) {
+    usuarioAtual = u;
+    bemVindo.textContent = "🎵 Bem-vindo, " + u;
+    loginForm.style.display = "none";
+    mainApp.style.display = "block";
+    if (u === "Cifrario") adminPanel.style.display = "block";
+    carregarLista();
+    atualizarListaUsuarios();
+  } else {
+    alert("Usuário ou senha inválidos");
+  }
+}
+
+function logout() {
+  location.reload();
+}
+
+function adicionarUsuario() {
+  const u = prompt("Novo usuário:");
+  const s = prompt("Senha:");
+  if (u && s) {
+    usuarios[u] = s;
+    localStorage.setItem("usuarios", JSON.stringify(usuarios));
+    atualizarListaUsuarios();
+  }
+}
+
+function removerUsuario(user) {
+  if (user !== "Cifrario" && confirm("Remover " + user + "?")) {
+    delete usuarios[user];
+    localStorage.setItem("usuarios", JSON.stringify(usuarios));
+    atualizarListaUsuarios();
+  }
+}
+
+function atualizarListaUsuarios() {
+  listaUsuarios.innerHTML = "";
+  for (const u in usuarios) {
+    const b = u !== "Cifrario" ? `<button onclick="removerUsuario('${u}')">❌</button>` : "";
+    listaUsuarios.innerHTML += `<div>${u} ${b}</div>`;
+  }
+}
+
+function salvarCifra() {
+  const t = titulo.value;
+  const c = conteudo.value;
+  if (!t || !c || !usuarioAtual) return alert("Preencha tudo.");
+  const dados = JSON.parse(localStorage.getItem("cifras_" + usuarioAtual) || "{}");
+  dados[t] = c;
+  localStorage.setItem("cifras_" + usuarioAtual, JSON.stringify(dados));
+  carregarLista();
+  mostrarCifra(c);
+}
+
+function carregarLista() {
+  lista.innerHTML = `<option value="" disabled selected>-- Selecione --</option>`;
+  const dados = JSON.parse(localStorage.getItem("cifras_" + usuarioAtual) || "{}");
+  for (const t in dados) {
+    const o = document.createElement("option");
+    o.value = t;
+    o.textContent = t;
+    lista.appendChild(o);
+  }
+}
+
+function carregarCifra() {
+  const t = lista.value;
+  const dados = JSON.parse(localStorage.getItem("cifras_" + usuarioAtual) || "{}");
+  titulo.value = t;
+  conteudo.value = dados[t];
+  mostrarCifra(dados[t]);
+}
+
+function removerCifra() {
+  const t = lista.value;
+  const dados = JSON.parse(localStorage.getItem("cifras_" + usuarioAtual) || "{}");
+  if (t && confirm("Remover " + t + "?")) {
+    delete dados[t];
+    localStorage.setItem("cifras_" + usuarioAtual, JSON.stringify(dados));
+    carregarLista();
+    titulo.value = "";
+    conteudo.value = "";
+    cifraDisplay.innerHTML = "";
+  }
+}
+
+function mostrarCifra(txt) {
+  cifraDisplay.innerHTML = formatarCifra(txt);
+}
+
+function extrairCifra() {
+  const url = urlCifra.value;
+  if (!url.includes("cifraclub")) return alert("URL inválida");
+  fetch("https://api.allorigins.win/raw?url=" + encodeURIComponent(url))
+    .then(res => res.text())
+    .then(html => {
+      const match = html.match(/<pre[^>]*class=\".*?js-tab-content.*?\"[^>]*>(.*?)<\\/pre>/gs);
+      if (match && match[0]) {
+        const raw = match[0].replace(/<[^>]*>/g, "");
+        conteudo.value = decodeHTMLEntities(raw.trim());
+        mostrarCifra(conteudo.value);
+      } else {
+        alert("Cifra não encontrada.");
+      }
+    })
+    .catch(() => alert("Erro ao extrair a cifra."));
+}
+
+function decodeHTMLEntities(str) {
+  const txt = document.createElement("textarea");
+  txt.innerHTML = str;
+  return txt.value;
+}
+
+function copiarCifra() {
+  navigator.clipboard.writeText(cifraDisplay.innerText).then(() => alert("Cifra copiada!"));
+}
+
+function exportarPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.text(cifraDisplay.innerText, 10, 10);
+  doc.save(`${titulo.value || "Cifra"}.pdf`);
+}
+
+function alternarControles() {
+  const el = document.querySelector(".controls");
+  el.style.display = el.style.display === "flex" ? "none" : "flex";
+}
+
+function toggleMode() {
+  document.body.classList.toggle("light-mode");
+}
+
+function adjustFont(delta) {
+  const el = document.getElementById("cifraDisplay");
+  const size = parseFloat(window.getComputedStyle(el).fontSize);
+  el.style.fontSize = (size + delta) + "px";
+}
+
+function toggleScroll() {
+  if (window._scrollInterval) {
+    clearInterval(window._scrollInterval);
+    window._scrollInterval = null;
+  } else {
+    const speed = parseInt(scrollSpeed.value || "2");
+    window._scrollInterval = setInterval(() => window.scrollBy(0, 1), 100 / speed);
+  }
+}
+
+function atualizarPorcentagem() {
+  scrollPercent.textContent = scrollSpeed.value * 10 + "%";
+}
+
+const semitons = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+function transpor(delta) {
+  conteudo.value = transporTexto(conteudo.value, delta);
+  mostrarCifra(conteudo.value);
+}
+
+function transporPara(novoTom) {
+  const texto = conteudo.value;
+  const match = texto.match(/([A-G]#?b?)/);
+  if (!match) return alert("Tom original não identificado.");
+  const atual = semitons.indexOf(match[1]);
+  const novo = semitons.indexOf(novoTom);
+  transpor(novo - atual);
+}
+
+function transporTexto(texto, delta) {
+  return texto.replace(/([A-G])(#|b)?(m|dim|aug|sus|add|7|9|11|13)?/g, (match, nota, alt, sufixo) => {
+    let index = semitons.indexOf(nota + (alt || ""));
+    if (index === -1) return match;
+    let novoIndex = (index + delta + 12) % 12;
+    return semitons[novoIndex] + (sufixo || "");
+  });
+}
+
+function formatarCifra(texto) {
+  return texto.split("\n").map(linha => {
+    const tokens = linha.split(/(\s+)/).map(t => {
+      return /^[A-G][#b]?(m|dim|aug|sus|add|7|9|11|13)?\d*(\/\w+)?$/.test(t.trim())
+        ? `<span class='acorde'>${t}</span>` : t;
+    }).join('');
+    return `<span class='cifra-line'>${tokens}</span>`;
+  }).join("\n");
+}
+</script>
+</body>
+</html>
