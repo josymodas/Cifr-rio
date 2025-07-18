@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#121212" />
+  <title>Cifrário</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon-192.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Mono&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Fira Mono', monospace;
+      background-color: #121212;
+      color: #ffffff;
+      font-size: 1em;
+    }
+    body.light-mode {
+      background-color: #f0f0f0;
+      color: #000000;
+    }
+    body.light-mode .container {
+      background: #ffffff;
+      color: #000000;
+    }
+    .container {
+      max-width: 600px;
+      margin: 2em auto;
+      padding: 1em;
+      background: #1f1f1f;
+      border-radius: 10px;
+    }
+    h2 {
+      text-align: center;
+    }
+    input, button, textarea, select {
+      width: 100%;
+      padding: 0.8em;
+      margin-top: 1em;
+      border: none;
+      border-radius: 6px;
+      font-size: 1em;
+      box-sizing: border-box;
+      font-family: inherit;
+    }
+    button {
+      background-color: #444;
+      color: white;
+      cursor: pointer;
+    }
+    body.light-mode button {
+      background-color: #ccc;
+      color: #000;
+    }
+    button:hover {
+      background-color: #666;
+    }
+    body.light-mode button:hover {
+      background-color: #bbb;
+    }
+    #cifraDisplay {
+      white-space: pre-wrap;
+      background: #222;
+      color: #fff;
+      padding: 1.2em;
+      border-radius: 8px;
+      margin-top: 1.5em;
+      font-size: 1.1em;
+      font-weight: 400;
+      min-height: 250px;
+    }
+    body.light-mode #cifraDisplay {
+      background: #fdfdfd;
+      color: #000;
+    }
+    .acorde {
+      color: #00bfff;
+      font-weight: normal;
+    }
+    .letra {
+      font-weight: bold;
+    }
+    .floating-btn {
+      position: fixed;
+      bottom: 1em;
+      right: 1em;
+      z-index: 1000;
+      background: #000000cc;
+      color: white;
+      border-radius: 50%;
+      padding: 0.6em 1em;
+      font-size: 1.5em;
+      cursor: pointer;
+    }
+    .config-panel {
+      position: fixed;
+      top: 1em;
+      right: 1em;
+      background: #333;
+      padding: 1em;
+      border-radius: 10px;
+      display: none;
+      flex-direction: column;
+      gap: 0.5em;
+      z-index: 999;
+    }
+    .config-panel.visible {
+      display: flex;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>🎸 Cifrário</h2>
+    <input type="text" id="titulo" placeholder="Título da música" />
+    <textarea id="entradaCifra" rows="10" placeholder="Cole a cifra aqui ou use a URL abaixo"></textarea>
+    <input type="url" id="urlInput" placeholder="Cole a URL do Cifras Club" />
+    <button onclick="extrairCifra()">🔍 Extrair da URL</button>
+    <button onclick="removerTablatura()">🧹 Remover tablatura</button>
+    <button onclick="restaurarTablatura()">↩️ Restaurar tablatura</button>
+    <select id="controleTom" onchange="transporTom(this.value)">
+      <option value="0">Tom original</option>
+      <option value="1">+1</option>
+      <option value="2">+2</option>
+      <option value="3">+3</option>
+      <option value="-1">-1</option>
+      <option value="-2">-2</option>
+      <option value="-3">-3</option>
+    </select>
+    <button onclick="rolarCifra()">⬇️ Rolar</button>
+    <button onclick="toggleTheme()">🌓 Alternar tema</button>
+    <div id="cifraDisplay"></div>
+  </div>
+  <script>
+    let cifraOriginal = "";
+    let tablaturaOculta = false;
+
+    function extrairCifra() {
+      const url = document.getElementById("urlInput").value.trim();
+      if (!url) return alert("Cole uma URL válida.");
+      fetch("https://api.allorigins.win/get?url=" + encodeURIComponent(url))
+        .then(response => response.json())
+        .then(data => {
+          const html = data.contents;
+          const match = html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/);
+          if (match && match[1]) {
+            const cifra = match[1]
+              .replace(/<br\s*\/?>/gi, "\n")
+              .replace(/<[^>]+>/g, "")
+              .trim();
+            document.getElementById("entradaCifra").value = cifra;
+            document.getElementById("titulo").value ||= extrairTitulo(url);
+            cifraOriginal = cifra;
+            salvarCifra();
+            exibirCifra(cifra);
+          } else {
+            alert("Cifra não encontrada.");
+          }
+        })
+        .catch(() => alert("Erro ao buscar a cifra."));
+    }
+
+    function extrairTitulo(url) {
+      const partes = url.split('/');
+      return decodeURIComponent(partes.at(-1).replace(/-/g, ' '));
+    }
+
+    function exibirCifra(texto) {
+      const linhas = texto.split("\n").map(linha => {
+        const tokens = linha.split(/(\s+)/).map(t =>
+          /^[A-G][#b]?(m|dim|aug|sus|add)?\d*(\/[A-G][#b]?)?$/.test(t.trim()) ?
+          `<span class="acorde">${t}</span>` : `<span class="letra">${t}</span>`
+        );
+        return tokens.join('');
+      });
+      document.getElementById("cifraDisplay").innerHTML = linhas.join("\n");
+    }
+
+    function transporTom(quant) {
+      if (!cifraOriginal) return;
+      const notas = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+      const regex = /([A-G][#b]?)(m|dim|aug|sus|add)?(\d*)(\/[A-G][#b]?)?/g;
+
+      const transposta = cifraOriginal.replace(regex, (match, raiz, tipo = '', sufixo = '', baixo = '') => {
+        const i = notas.indexOf(raiz);
+        if (i === -1) return match;
+        const novaNota = notas[(i + parseInt(quant) + 12) % 12];
+        return novaNota + tipo + sufixo + (baixo || '');
+      });
+
+      exibirCifra(transposta);
+    }
+
+    function rolarCifra() {
+      document.getElementById("cifraDisplay").scrollBy({ top: 150, behavior: "smooth" });
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle("light-mode");
+    }
+
+    function salvarCifra() {
+      const cifra = document.getElementById("entradaCifra").value;
+      const titulo = document.getElementById("titulo").value;
+      if (!titulo || !cifra) return;
+      localStorage.setItem("ultimaCifra", JSON.stringify({ titulo, cifra }));
+    }
+
+    function restaurarCifra() {
+      const dados = JSON.parse(localStorage.getItem("ultimaCifra") || "null");
+      if (dados) {
+        document.getElementById("titulo").value = dados.titulo;
+        document.getElementById("entradaCifra").value = dados.cifra;
+        cifraOriginal = dados.cifra;
+        exibirCifra(cifraOriginal);
+      }
+    }
+
+    function removerTablatura() {
+      if (tablaturaOculta) return;
+      const filtrada = cifraOriginal
+        .split("\n")
+        .filter(l => !l.match(/\[?tab\]?/i) && !l.match(/^[EeBGDA][|:]/))
+        .join("\n");
+      exibirCifra(filtrada);
+      tablaturaOculta = true;
+    }
+
+    function restaurarTablatura() {
+      if (!tablaturaOculta) return;
+      exibirCifra(cifraOriginal);
+      tablaturaOculta = false;
+    }
+
+    window.onload = () => {
+      restaurarCifra();
+    };
+  </script>
+</body>
+</html>
