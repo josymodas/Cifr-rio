@@ -1,0 +1,200 @@
+<script>
+function toggleSettings() {
+  const menu = document.getElementById("floatingMenu");
+  menu.style.display = menu.style.display === "none" ? "block" : "none";
+}
+
+function alternarTema() {
+  document.body.classList.toggle("light-mode");
+  localStorage.setItem("tema", document.body.classList.contains("light-mode") ? "claro" : "escuro");
+}
+
+function rolarCifra() {
+  clearInterval(window._rolagem);
+  window._rolagem = setInterval(() => window.scrollBy(0, 1), 60);
+}
+
+function formatarCifra(texto) {
+  return texto.split('\n').map(linha => {
+    const tokens = linha.split(/(\s+)/).map(t => {
+      return /^[A-G][#b]?(m|dim|aug|sus|add|7|9|11|13)?\d*(\/\w+)?$/.test(t.trim())
+        ? `<span class='acorde'>${t}</span>` : t;
+    }).join('');
+    return `<span class='cifra-line'>${tokens}</span>`;
+  }).join('\n');
+}
+
+function atualizarCifra() {
+  const texto = document.getElementById("conteudo").value;
+  document.getElementById("cifraDisplay").innerHTML = formatarCifra(texto);
+  document.getElementById("cifraDisplay").setAttribute("data-original", texto);
+  localStorage.setItem("cifra", texto);
+  localStorage.setItem("titulo", document.getElementById("titulo").value);
+}
+
+document.getElementById("conteudo").addEventListener("input", atualizarCifra);
+document.getElementById("titulo").addEventListener("input", atualizarCifra);
+
+document.getElementById("tom").addEventListener("change", () => {
+  const semitons = parseInt(document.getElementById("tom").value);
+  if (!isNaN(semitons)) mudarTom(semitons);
+});
+
+function mudarTom(semitons) {
+  const cifra = document.getElementById("cifraDisplay");
+  const texto = cifra.getAttribute("data-original") || "";
+  const mapaNotas = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  function transpNota(nota) {
+    let i = mapaNotas.findIndex(n => nota.toUpperCase().startsWith(n));
+    if (i === -1) return nota;
+    let novoIndex = (i + semitons + 12) % 12;
+    return nota.replace(mapaNotas[i], mapaNotas[novoIndex]);
+  }
+  const transposta = texto.replace(/[A-G][#b]?(m|dim|aug|sus|add|7|9|11|13)?\d*(\/\w+)?/g, transpNota);
+  cifra.innerHTML = formatarCifra(transposta);
+}
+
+function extrairCifra() {
+  const url = document.getElementById("urlInput").value;
+  if (!url.includes("cifraclub.com.br")) return alert("URL inválida.");
+
+  fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`)
+    .then(res => res.json())
+    .then(data => {
+      const html = data.contents;
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      const pre = doc.querySelector("pre");
+      const cifraTexto = pre?.innerText.trim();
+      if (cifraTexto) {
+        document.getElementById("conteudo").value = cifraTexto;
+        atualizarCifra();
+      } else {
+        alert("Cifra não encontrada");
+      }
+    })
+    .catch(() => alert("Erro ao buscar cifra."));
+}
+
+function toggleTab() {
+  const cifra = document.getElementById("cifraDisplay");
+  const textoOriginal = cifra.getAttribute("data-original") || "";
+  const ocultar = !cifra.getAttribute("data-tab-oculto");
+  let filtrado = ocultar
+    ? textoOriginal.split('\n').filter(l => !/^\s*[A-Ga-g]\|/.test(l)).join('\n')
+    : textoOriginal;
+  cifra.innerHTML = formatarCifra(filtrado);
+  cifra.setAttribute("data-tab-oculto", ocultar ? "true" : "");
+}
+
+window.onload = () => {
+  const cifraSalva = localStorage.getItem("cifra");
+  const tituloSalvo = localStorage.getItem("titulo");
+  if (cifraSalva) document.getElementById("conteudo").value = cifraSalva;
+  if (tituloSalvo) document.getElementById("titulo").value = tituloSalvo;
+  atualizarCifra();
+  if (localStorage.getItem("tema") === "claro") document.body.classList.add("light-mode");
+};
+</script>
+</body>
+</html>
+<script>
+function toggleSettings() {
+  const menu = document.getElementById("floatingMenu");
+  menu.style.display = menu.style.display === "none" ? "block" : "none";
+}
+
+function alternarTema() {
+  document.body.classList.toggle("light-mode");
+  localStorage.setItem("tema", document.body.classList.contains("light-mode") ? "claro" : "escuro");
+}
+
+function rolarCifra() {
+  clearInterval(window._rolagem);
+  window._rolagem = setInterval(() => window.scrollBy(0, 1), 60);
+}
+
+function formatarCifra(texto) {
+  return texto.split('\n').map(linha => {
+    const tokens = linha.split(/(\s+)/).map(t => {
+      return /^[A-G][#b]?(m|dim|aug|sus|add|7|9|11|13)?\d*(\/\w+)?$/.test(t.trim())
+        ? `<span class='acorde'>${t}</span>` : t;
+    }).join('');
+    return `<span class='cifra-line'>${tokens}</span>`;
+  }).join('\n');
+}
+
+function atualizarCifra() {
+  const texto = document.getElementById("conteudo").value;
+  document.getElementById("cifraDisplay").innerHTML = formatarCifra(texto);
+  document.getElementById("cifraDisplay").setAttribute("data-original", texto);
+  localStorage.setItem("cifra", texto);
+  localStorage.setItem("titulo", document.getElementById("titulo").value);
+}
+
+document.getElementById("conteudo").addEventListener("input", atualizarCifra);
+document.getElementById("titulo").addEventListener("input", atualizarCifra);
+
+document.getElementById("tom").addEventListener("change", () => {
+  const semitons = parseInt(document.getElementById("tom").value);
+  if (!isNaN(semitons)) mudarTom(semitons);
+});
+
+function mudarTom(semitons) {
+  const cifra = document.getElementById("cifraDisplay");
+  const texto = cifra.getAttribute("data-original") || "";
+  const mapaNotas = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  function transpNota(nota) {
+    let i = mapaNotas.findIndex(n => nota.toUpperCase().startsWith(n));
+    if (i === -1) return nota;
+    let novoIndex = (i + semitons + 12) % 12;
+    return nota.replace(mapaNotas[i], mapaNotas[novoIndex]);
+  }
+  const transposta = texto.replace(/[A-G][#b]?(m|dim|aug|sus|add|7|9|11|13)?\d*(\/\w+)?/g, transpNota);
+  cifra.innerHTML = formatarCifra(transposta);
+}
+
+function extrairCifra() {
+  const url = document.getElementById("urlInput").value;
+  if (!url.includes("cifraclub.com.br")) return alert("URL inválida.");
+
+  fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`)
+    .then(res => res.json())
+    .then(data => {
+      const html = data.contents;
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      const pre = doc.querySelector("pre");
+      const cifraTexto = pre?.innerText.trim();
+      if (cifraTexto) {
+        document.getElementById("conteudo").value = cifraTexto;
+        atualizarCifra();
+      } else {
+        alert("Cifra não encontrada");
+      }
+    })
+    .catch(() => alert("Erro ao buscar cifra."));
+}
+
+function toggleTab() {
+  const cifra = document.getElementById("cifraDisplay");
+  const textoOriginal = cifra.getAttribute("data-original") || "";
+  const ocultar = !cifra.getAttribute("data-tab-oculto");
+  let filtrado = ocultar
+    ? textoOriginal.split('\n').filter(l => !/^\s*[A-Ga-g]\|/.test(l)).join('\n')
+    : textoOriginal;
+  cifra.innerHTML = formatarCifra(filtrado);
+  cifra.setAttribute("data-tab-oculto", ocultar ? "true" : "");
+}
+
+window.onload = () => {
+  const cifraSalva = localStorage.getItem("cifra");
+  const tituloSalvo = localStorage.getItem("titulo");
+  if (cifraSalva) document.getElementById("conteudo").value = cifraSalva;
+  if (tituloSalvo) document.getElementById("titulo").value = tituloSalvo;
+  atualizarCifra();
+  if (localStorage.getItem("tema") === "claro") document.body.classList.add("light-mode");
+};
+</script>
+</body>
+</html>
