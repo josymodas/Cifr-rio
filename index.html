@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#121212">
+  <title>Cifrário</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon-192.png" type="image/png">
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Mono&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Fira Mono', monospace;
+      background-color: #121212;
+      color: #fff;
+      font-size: 1em;
+      overflow-x: hidden;
+    }
+    .light-mode {
+      background-color: #f5f5f5;
+      color: #000;
+    }
+    .light-mode #cifraDisplay {
+      background-color: #fff;
+      color: #000;
+    }
+    .container {
+      max-width: 600px;
+      margin: 2em auto;
+      padding: 1em;
+      background: #1f1f1f;
+      border-radius: 10px;
+    }
+    .light-mode .container {
+      background: #ffffff;
+      color: #000000;
+    }
+    h1, h2, h3 {
+      text-align: center;
+    }
+    input, button, select, textarea {
+      width: 100%;
+      padding: 0.8em;
+      margin-top: 1em;
+      border: none;
+      border-radius: 6px;
+      font-size: 1em;
+      font-family: inherit;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #333;
+      color: white;
+      cursor: pointer;
+    }
+    .light-mode button {
+      background-color: #ddd;
+      color: #000;
+    }
+    button:hover {
+      background-color: #555;
+    }
+    .light-mode button:hover {
+      background-color: #ccc;
+    }
+    #cifraDisplay {
+      white-space: pre-wrap;
+      background: #222;
+      padding: 1.5em;
+      border-radius: 8px;
+      margin: 1em auto;
+      font-size: 1.1em;
+      font-weight: 400;
+      min-height: 250px;
+      max-width: 95vw;
+      overflow-y: auto;
+      max-height: 60vh;
+    }
+    .admin-controls {
+      margin-top: 2em;
+    }
+    #toggleBtn {
+      position: fixed;
+      bottom: 1em;
+      right: 1em;
+      font-size: 1.8em;
+      cursor: pointer;
+      background-color: #00000088;
+      padding: 0.3em 0.6em;
+      border-radius: 50px;
+      z-index: 1000;
+      color: #fff;
+      opacity: 0.7;
+      transition: opacity 0.3s;
+    }
+    #toggleBtn:hover {
+      opacity: 1;
+    }
+    .controls {
+      display: none;
+      position: fixed;
+      top: 1em;
+      left: 1em;
+      background-color: #00000066;
+      padding: 0.5em;
+      border-radius: 10px;
+      z-index: 999;
+      flex-direction: column;
+      gap: 0.5em;
+    }
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+      font-size: 0.95em;
+      color: inherit;
+    }
+    #conteudo {
+      font-weight: bold;
+    }
+    .cifra-line {
+      display: block;
+      white-space: pre;
+    }
+    .acorde {
+      color: #00bfff;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎸 Cifrário</h1>
+    <label>URL da cifra:
+      <input type="text" id="url" placeholder="Cole a URL da música do Cifra Club">
+    </label>
+    <button onclick="extrairCifra()">🔍 Extrair</button>
+    <label>Título:
+      <input type="text" id="titulo" placeholder="Nome da música">
+    </label>
+    <label>Cifra:
+      <textarea id="cifra" rows="10" placeholder="Cole ou edite a cifra aqui..."></textarea>
+    </label>
+    <label>Tom:
+      <select id="tom" onchange="transporTom()">
+        <option value="0">Original</option>
+        <option value="1">+1</option>
+        <option value="2">+2</option>
+        <option value="-1">-1</option>
+        <option value="-2">-2</option>
+      </select>
+    </label>
+    <button onclick="salvarCifra()">💾 Salvar</button>
+    <button onclick="toggleTablatura()">🪗 Ocultar/Mostrar Tablatura</button>
+    <button onclick="iniciarRolagem()">▶️ Play (rolagem)</button>
+  </div>
+  <div id="cifraDisplay"></div>
+<script>
+  // Extração de cifra
+  function extrairCifra() {
+    const url = document.getElementById('url').value.trim();
+    if (!url) return alert('Informe a URL da cifra.');
+    fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`)
+      .then(res => res.json())
+      .then(data => {
+        const html = data.contents;
+        const match = html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/);
+        const titleMatch = html.match(/<title>(.*?)<\/title>/i);
+        if (match) {
+          const cifra = match[1].replace(/<[^>]+>/g, '').trim();
+          document.getElementById('cifra').value = cifra;
+          document.getElementById('titulo').value = titleMatch?.[1]?.split('|')[0]?.trim() || 'Sem título';
+          exibirCifra(cifra);
+          salvarCifra();
+        } else {
+          alert('Não foi possível extrair a cifra.');
+        }
+      })
+      .catch(() => alert('Erro ao buscar a cifra.'));
+  }
+
+  // Exibe cifra formatada
+  function exibirCifra(texto) {
+    const linhas = texto.split('\n').map(linha => {
+      const tokens = linha.split(/(\s+)/).map(t => {
+        return /^[A-G][#b]?(m|dim|aug|sus|add|7|9|11|13)?\d*(\/\w+)?$/.test(t.trim())
+          ? `<span class='acorde'>${t}</span>` : t;
+      }).join('');
+      return `<span class='cifra-line'>${tokens}</span>`;
+    }).join('\n');
+    document.getElementById('cifraDisplay').innerHTML = linhas;
+  }
+
+  // Transposição de tom
+  function transporTom() {
+    const cifra = document.getElementById('cifra').value;
+    const tom = parseInt(document.getElementById('tom').value);
+    if (!cifra || tom === 0) {
+      exibirCifra(cifra);
+      return;
+    }
+    const notas = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const regex = /([A-G](#|b)?)(m|maj|min|dim|aug|sus|add)?(\d+)?/g;
+    const transposta = cifra.replace(regex, (acorde) => {
+      const base = acorde.match(/[A-G](#|b)?/)[0];
+      const sufixo = acorde.slice(base.length);
+      let idx = notas.indexOf(base);
+      if (idx === -1) return acorde;
+      let novoIdx = (idx + tom + 12) % 12;
+      return notas[novoIdx] + sufixo;
+    });
+    exibirCifra(transposta);
+  }
+
+  // Salvamento automático
+  function salvarCifra() {
+    const titulo = document.getElementById('titulo').value.trim();
+    const cifra = document.getElementById('cifra').value.trim();
+    if (!titulo || !cifra) return;
+    localStorage.setItem(`musica-${titulo}`, cifra);
+  }
+
+  document.getElementById('cifra').addEventListener('input', () => {
+    salvarCifra();
+    exibirCifra(document.getElementById('cifra').value);
+  });
+  document.getElementById('titulo').addEventListener('input', salvarCifra);
+
+  // Rolagem automática
+  let rolagemAtiva = false;
+  let rolagemIntervalo;
+  function iniciarRolagem() {
+    const display = document.getElementById("cifraDisplay");
+    if (!display) return;
+    if (rolagemAtiva) {
+      clearInterval(rolagemIntervalo);
+      rolagemAtiva = false;
+      return;
+    }
+    rolagemAtiva = true;
+    let y = display.scrollTop;
+    rolagemIntervalo = setInterval(() => {
+      y += 1;
+      display.scrollTop = y;
+      if (y >= display.scrollHeight - display.clientHeight) {
+        clearInterval(rolagemIntervalo);
+        rolagemAtiva = false;
+      }
+    }, 100);
+  }
+
+  // Ocultar / Restaurar tablatura
+  let tablaturaOculta = false;
+  let cifraOriginal = '';
+  function toggleTablatura() {
+    const cifra = document.getElementById('cifra').value;
+    if (!cifraOriginal) cifraOriginal = cifra;
+    if (!tablaturaOculta) {
+      const semTab = cifraOriginal
+        .split('\n')
+        .filter(l => !/^[-|]{3,}/.test(l.trim()) && !/^\[?tab\]?/i.test(l))
+        .join('\n');
+      document.getElementById('cifra').value = semTab;
+      exibirCifra(semTab);
+      tablaturaOculta = true;
+    } else {
+      document.getElementById('cifra').value = cifraOriginal;
+      exibirCifra(cifraOriginal);
+      tablaturaOculta = false;
+    }
+    salvarCifra();
+  }
+</script>
+</body>
+</html>
