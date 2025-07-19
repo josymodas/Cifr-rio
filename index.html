@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cifrário</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1.5.10/css/pico.min.css">
+  <style>
+    body[data-theme='dark'] textarea,
+    body[data-theme='dark'] select,
+    body[data-theme='dark'] input {
+      background-color: #111;
+      color: #eee;
+    }
+    .cifra {
+      white-space: pre-wrap;
+      font-family: monospace;
+      font-size: 1rem;
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 10px;
+      background-color: var(--background-color, #eee);
+      color: var(--text-color, #111);
+    }
+    [data-theme='dark'] .cifra {
+      background-color: #111;
+      color: #eee;
+    }
+    #toolbar {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    #toolbar button {
+      border-radius: 10px;
+      font-size: 0.8rem;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+
+<body data-theme="dark">
+  <main class="container">
+    <h1>🎸 Cifrário</h1>
+
+    <label>Extrair de URL:
+      <input type="url" id="url" placeholder="https://www.cifraclub.com.br/...">
+    </label>
+    <button onclick="extrairCifra()">🔍 Extrair da URL</button>
+
+    <label>Nova música:
+      <input type="text" id="titulo" placeholder="Título da música">
+    </label>
+    <textarea id="cifra" rows="12" placeholder="Cole aqui a cifra..."></textarea>
+
+    <label for="tom">Tom:</label>
+    <select id="tom" onchange="transporTom()">
+      <option value="0">Original</option>
+      <option value="1">+1</option>
+      <option value="2">+2</option>
+      <option value="-1">-1</option>
+      <option value="-2">-2</option>
+    </select>
+
+    <button onclick="salvarCifra()">📁 Salvar</button>
+
+    <h3>🎵 Minhas músicas</h3>
+    <select id="minhasMusicas" onchange="carregarCifra()">
+      <option>-- Selecione --</option>
+    </select>
+    <button onclick="removerCifra()">🗑 Remover música selecionada</button>
+
+    <h3>👤 Usuários</h3>
+    <select id="usuarios"></select>
+    <button onclick="removerUsuario()" class="contrast">❌ Remover Usuário</button>
+    <button onclick="logout()">🔐 Sair</button>
+
+    <pre id="cifraRender" class="cifra"></pre>
+
+    <div id="toolbar">
+      <button onclick="alternarTema()">🌝 Tema</button>
+      <button onclick="rolar()">📂 Rolar</button>
+      <button onclick="alternarTablatura()">🪐 Tablatura</button>
+    </div>
+
+    <script>
+      document.getElementById('salvar-btn').click();
+    }
+  });
+
+  // Corrigir tema claro escuro
+  const observer = new MutationObserver(() => {
+    if (document.body.classList.contains('light')) {
+      cifraPreview.style.background = '#f9f9f9';
+      cifraPreview.style.color = '#000';
+    } else {
+      cifraPreview.style.background = '#1e1e1e';
+      cifraPreview.style.color = '#fff';
+    }
+  });
+  observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+
+</script>
+
+<!-- Service Worker para PWA -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./service-worker.js')
+        .then(reg => console.log('Service Worker registrado:', reg))
+        .catch(err => console.error('Erro ao registrar Service Worker:', err));
+    });
+  }
+</script>
+
+</body>
+</html>
